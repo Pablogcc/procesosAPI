@@ -34,41 +34,38 @@ class ProcesarFacturasInsertadas extends Command
         $totalTiempo = 0;
 
         $facturas = Estado_procesos::where('enviados', 'pendiente')
-            ->where('estado_proceso', 'bloqueada')
-            ->whereNotIn('numSerieFactura', function ($query) {
-                $query->select('num_serie_factura')->from('facturas_firmadas');
-            })->get();
+            ->where('estado_proceso', 'bloqueada')->get();
 
         foreach ($facturas as $factura) {
             $inicio = microtime(true);
 
 
             try {
+
+                if (empty($factura->nombreRazon) || (strlen($factura->nombreRazonEmisor) < 3 || strlen($factura->nombreRazonEmisor) > 100)) {
+                    throw new \Exception("El nombre es incorrecto. REVISAR FACTURA");
+                }
+
+                if (strlen($factura->nif) !== 9) {
+                    throw new \Exception("El NIF es incorrecto. REVISAR FACTURA");
+                }
+
                 //Generar XML
                 $xml = (new FacturaXmlGenerator())->generateXml($factura);
 
-
                 //Guardamos el XML
-                $carpetaOrigen = getenv('USERPROFILE') . '\facturasBloqueadas';
+                $carpetaOrigen = getenv('USERPROFILE') . '\facturas';
 
-                if (!is_dir($carpetaOrigen)) {
-                    mkdir($carpetaOrigen, 0777, true);
-                }
-
-                $ruta = $carpetaOrigen . '\facturas_' . $factura->numSerieFactura . '.xml';
+                $ruta = $carpetaOrigen . '\facturas_lock_' . $factura->numSerieFactura . '.xml';
                 file_put_contents($ruta, $xml);
 
                 //Firma del XML
                 $xmlFirmado = (new FirmaXmlGenerator())->firmaXml($xml);
 
                 //Guardamos el XML firmado
-                $carpetaDestino = getenv('USERPROFILE') . '\facturasFirmadasBloqueadas';
+                $carpetaDestino = getenv('USERPROFILE') . '\facturasFirmadas';
 
-                if (!is_dir($carpetaDestino)) {
-                    mkdir($carpetaDestino, 0777, true);
-                }
-
-                $rutaDestino = $carpetaDestino . '\factura_firmada_' . $factura->numSerieFactura . '.xml';
+                $rutaDestino = $carpetaDestino . '\factura_lock_firmada_' . $factura->numSerieFactura . '.xml';
 
                 file_put_contents($rutaDestino, $xmlFirmado);
 

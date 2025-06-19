@@ -10,3 +10,6 @@ Artisan::command('inspire', function () {
 
 //Cada minuto ejecuta el comando
 Schedule::command('facturas:procesar-inserts')->everyMinute();
+
+// everyFifteenMinutes
+// everyMinute
